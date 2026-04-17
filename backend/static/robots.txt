@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Allow: /index.html
+Allow: /static/
+Allow: /api/
+
+Disallow: /wallet.dat
+Disallow: /config.py
+
+# PWA files
+Allow: /static/manifest.json
+Allow: /static/sw.js
+Allow: /offline.html

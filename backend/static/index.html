@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>E-Wallet - Cashu Bitcoin Wallet</title>
+    <meta name="description" content="A private, offline-capable Bitcoin wallet using Cashu ecash">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="color-scheme" content="dark">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="E-Wallet">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/static/manifest.json">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" href="/static/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
+    
+    <link rel="stylesheet" href="/static/css/style.css?v=7">
+
+    <!-- Chart.js library for balance visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- PWA Offline Support -->
+    <script src="/static/js/pwa-offline.js"></script>
+</head>
+<body>
+
+<div class="layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <nav class="nav">
+            <a href="#" class="nav-item active" onclick="showView('wallet'); return false;">Wallet</a>
+            <a href="#" class="nav-item" onclick="showView('receive'); return false;">Receive</a>
+            <a href="#" class="nav-item" onclick="showView('send'); return false;">Send</a>
+            <a href="#" class="nav-item" onclick="showView('mint'); return false;">Mint</a>
+            <a href="#" class="nav-item" onclick="showView('history'); return false;">History</a>
+        </nav>
+
+        <div class="active-mint">
+            Selected Mint:
+            <div class="active-mint-row">
+                <span id="active-mint-name">None</span>
+                <span id="remove-mint-btn" onclick="openDeleteModal()">−</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+
+        <!-- WALLET VIEW -->
+        <div id="wallet-view">
+            <section class="top-grid">
+
+                <!-- BALANCE CARD -->
+                <div class="card large">
+                    <div class="card-header">Total Balance</div>
+
+                    <div id="balance" class="huge">0 sats</div>
+                    <div id="fiat-value" class="sub">≈ $0.00</div>
+                </div>
+
+                <!-- BTC PRICE CARD -->
+                <div class="card large">
+                    <div class="card-header price-header">
+                        <span>Bitcoin Price</span>
+
+                        <div class="currency-switch" onclick="toggleCurrency()">
+                            <span id="currency-label">USD</span>
+                            <span class="arrow">⇅</span>
+                        </div>
+                    </div>
+
+                    <div id="btc-price" class="huge">$--</div>
+                    <div class="live">● Live</div>
+
+                    <!-- 📈 GREEN GRAPH -->
+                    <canvas id="btc-chart" height="80"></canvas>
+                </div>
+
+            </section>
+
+            <!-- MINT INPUT SECTION -->
+            <section class="mint-input-section">
+                <div class="card">
+                    <div class="card-header">Add Custom Mint</div>
+                    
+                    <div class="input-group">
+                        <label for="mint-url-input">Mint URL</label>
+                        <div class="input-wrapper">
+                            <span class="input-prefix">https://</span>
+                            <input 
+                                type="text" 
+                                id="mint-url-input" 
+                                placeholder="example.com"
+                                class="mint-url-field"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="mint-name-input">Mint Name</label>
+                        <input 
+                            type="text" 
+                            id="mint-name-input" 
+                            placeholder="My Custom Mint"
+                            class="mint-name-field"
+                        />
+                    </div>
+
+                    <div class="button-row">
+                        <button class="primary" onclick="addCustomMint()">Add Mint</button>
+                    </div>
+                </div>
+            </section>
+
+            <div id="selected-mint-banner" class="selected-mint-banner hidden">
+                Selected Mint: <span id="selected-mint-banner-name"></span>
+            </div>
+        </div>
+
+        <!-- RECEIVE VIEW -->
+        <div id="receive-view" style="display:none;">
+            <div class="card large">
+                <div class="card-header">Receive Ecash</div>
+
+                <textarea 
+                    id="receive-token-input"
+                    placeholder="Paste Cashu token here..."
+                    style="width:100%; height:300px; margin-top:10px; border-radius:10px; padding:12px;"
+                ></textarea>
+
+                <div class="button-row">
+                    <button class="primary" onclick="receiveToken()">Receive</button>
+                </div>
+
+                <div id="receive-status" style="margin-top:15px;"></div>
+            </div>
+        </div>
+
+        <!-- SEND VIEW -->
+        <div id="send-view" style="display:none;">
+            <section class="top-grid">
+
+                <!-- BALANCE INFO CARD -->
+                <div class="card large">
+                    <div class="card-header">Total Balance</div>
+                    <div class="send-mint-meta">Selected Mint</div>
+                    <div id="send-mint-badge" class="send-mint-badge">No mint selected</div>
+                    <div id="send-sats-available" class="huge" style="color:#f7931a;">0 sats</div>
+                    <div class="sub" id="send-fiat-available">&asymp; $0.00</div>
+                </div>
+
+                <!-- AMOUNT CARD -->
+                <div class="card large">
+                    <div class="card-header">Amount</div>
+                    <div class="huge" style="color:#f7931a;"><span id="send-amount-display">0</span></div>
+                    <div class="sub">sats</div>
+                </div>
+
+            </section>
+
+            <!-- NUMPAD -->
+            <section class="send-pad-section">
+                <div class="send-pad-card" style="background:#111827; padding:20px; border-radius:20px;">
+                    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px;">
+                        <button class="pad-btn" onclick="padInput('1')">1</button>
+                        <button class="pad-btn" onclick="padInput('2')">2</button>
+                        <button class="pad-btn" onclick="padInput('3')">3</button>
+                        <button class="pad-btn" onclick="padInput('4')">4</button>
+                        <button class="pad-btn" onclick="padInput('5')">5</button>
+                        <button class="pad-btn" onclick="padInput('6')">6</button>
+                        <button class="pad-btn" onclick="padInput('7')">7</button>
+                        <button class="pad-btn" onclick="padInput('8')">8</button>
+                        <button class="pad-btn" onclick="padInput('9')">9</button>
+                        <button class="pad-btn pad-fn" onclick="padClear()">C</button>
+                        <button class="pad-btn" onclick="padInput('0')">0</button>
+                        <button class="pad-btn pad-fn" onclick="padBack()">&lArr;</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SEND BUTTON -->
+            <section class="send-btn-section">
+                <div class="button-row">
+                    <button class="primary send-go" id="send-go-btn" onclick="doSend()">Send</button>
+                </div>
+                <div id="send-status" style="margin-top:15px; text-align:center;"></div>
+            </section>
+
+            <!-- TOKEN OUTPUT -->
+            <section id="send-token-section" style="display:none; margin-top:20px;">
+                <div class="card">
+                    <div class="card-header">Cashu Token</div>
+                    <textarea id="send-token-out" readonly
+                        style="width:100%; height:100px; margin-top:10px; border-radius:10px; padding:10px; background:#1f2937; color:#22c55e; border:1px solid #374151; font-family:monospace; font-size:0.8rem; resize:none;"
+                    ></textarea>
+                    <div class="button-row">
+                        <button class="primary" onclick="copyToken()">Copy Token</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- MINT VIEW -->
+        <div id="mint-view" style="display:none;">
+            <h2>Mints</h2>
+            <div id="mint-list" class="mint-list"></div>
+        </div>
+
+        <!-- HISTORY VIEW -->
+        <div id="history-view" style="display:none;">
+            <h2>Transaction History</h2>
+            <div id="tx-list" class="mint-list"></div>
+        </div>
+
+    </main>
+</div>
+
+<!-- MODAL -->
+<div id="delete-modal" class="modal hidden">
+    <div class="modal-content">
+        <p>Remove selected mint?</p>
+        <div class="modal-actions">
+            <button class="secondary" onclick="closeDeleteModal()">Cancel</button>
+            <button class="danger" onclick="confirmDeleteMint()">Remove</button>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/app.js?v=6"></script>
+
+<script>
+// Price history storage (keeps multi-day data points loaded from backend)
+let priceHistory = [];
+let priceHistoryUSD = []; // Store original USD prices for currency conversion
+const MAX_HISTORY_POINTS = 672; // 7 days * 24 hours * 4 (15-minute points)
+let exchangeRate = { usd: 1, eur: 1 }; // Store conversion rates
+
+// Store price in history with timestamp
+function recordPriceHistory(usdPrice) {
+    if (!usdPrice || Number.isNaN(usdPrice)) return;
+
+    const now = new Date();
+    // Align to 15-minute buckets to match polling cadence
+    const bucketMinutes = Math.floor(now.getMinutes() / 15) * 15;
+    const bucketTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), bucketMinutes, 0, 0);
+    const timestamp = bucketTime.getTime();
+    const timeLabel = bucketTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+    const last = priceHistoryUSD[priceHistoryUSD.length - 1];
+    if (last) {
+        const sameBucket = last.timestamp === timestamp;
+        // Guard against sudden fallback/outlier spikes that distort the graph
+        const jumpRatio = Math.abs(usdPrice - last.price) / last.price;
+        if (!sameBucket && jumpRatio > 0.2) return;
+        if (sameBucket) {
+            last.price = Math.round(usdPrice * 100) / 100;
+            last.time = timeLabel;
+        } else {
+            priceHistoryUSD.push({ price: Math.round(usdPrice * 100) / 100, time: timeLabel, timestamp });
+        }
+    } else {
+        priceHistoryUSD.push({ price: Math.round(usdPrice * 100) / 100, time: timeLabel, timestamp });
+    }
+
+    if (priceHistoryUSD.length > MAX_HISTORY_POINTS) {
+        priceHistoryUSD = priceHistoryUSD.slice(-MAX_HISTORY_POINTS);
+    }
+    // Keep legacy mirror in sync
+    priceHistory = priceHistoryUSD;
+}
+
+// Fetch exchange rates to convert historical prices between currencies
+function fetchExchangeRates() {
+    // Use cached price data if available (no API call needed)
+    if (typeof currentPrice !== 'undefined' && currentPrice && currentPrice.usd && currentPrice.eur) {
+        exchangeRate.usd = currentPrice.usd;
+        exchangeRate.eur = currentPrice.eur;
+        return;
+    }
+    
+    // Only fetch if cache is not available (should rarely happen)
+    try {
+        const res = fetch("/api/btc-price").then(r => r.json()).then(data => {
+            if (data.usd && data.eur) {
+                exchangeRate.usd = data.usd;
+                exchangeRate.eur = data.eur;
+            }
+        }).catch(error => console.error("Error fetching exchange rates:", error));
+    } catch (error) {
+        console.error("Error fetching exchange rates:", error);
+    }
+}
+
+// Convert historical prices based on selected currency
+function convertHistoricalPrices() {
+    if (priceHistoryUSD.length === 0) return priceHistory;
+    
+    return priceHistoryUSD.map(item => ({
+        ...item,
+        price: currency === "eur" ? (item.price * exchangeRate.eur / exchangeRate.usd) : item.price
+    }));
+}
+
+// Fetch historical price data from the last 7 days
+async function loadHistoricalPrices() {
+    try {
+        const res = await fetch("/api/btc-price-history?days=7");
+        const data = await res.json();
+        
+        if (data.prices && Array.isArray(data.prices)) {
+            priceHistoryUSD = data.prices; // Store original USD prices
+            priceHistory = data.prices;
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error("Error loading historical prices:", error);
+        return false;
+    }
+}
+
+// Initialize charts with real data
+async function initializeCharts() {
+    // Load exchange rates and historical price data first
+    await fetchExchangeRates();
+    await loadHistoricalPrices();
+    
+    // Get price history data
+    const convertedPrices = convertHistoricalPrices();
+    const priceLabels = convertedPrices.map(p => p.time);
+    const priceData = convertedPrices.map(p => p.price);
+    
+    // Bitcoin Price Chart (green) - with real price data
+    window.btcChart = new Chart(document.getElementById("btc-chart"), {
+        type: "line",
+        data: {
+            labels: priceLabels.length > 0 ? priceLabels : ["No data yet"],
+            datasets: [{
+                label: "BTC Price (" + currency.toUpperCase() + ")",
+                data: priceData.length > 0 ? priceData : [0],
+                borderColor: "#22c55e",
+                backgroundColor: "rgba(34, 197, 94, 0.1)",
+                borderWidth: 2,
+                tension: 0.4,
+                fill: true,
+                pointRadius: 0,
+                pointBackgroundColor: "#22c55e",
+                pointBorderColor: "#fff",
+                pointBorderWidth: 0,
+                pointHoverRadius: 5,
+                pointHoverBackgroundColor: "#22c55e"
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { 
+                legend: { display: false }
+            },
+            scales: {
+                x: { display: false },
+                y: { display: false }
+            }
+        }
+    });
+}
+
+// Initialize on page load
+async function startApp() {
+    loadCurrency(); // Load currency preference first
+    await initializeCharts(); // Then initialize charts with correct currency
+    init(); // Finally initialize rest of app
+}
+
+startApp();
+
+// Register Service Worker for PWA functionality
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/static/sw.js', { scope: '/' })
+            .then(registration => {
+                console.log('Service Worker registered successfully:', registration);
+                // Check for updates periodically
+                setInterval(() => {
+                    registration.update();
+                }, 60000); // Check every minute
+            })
+            .catch(error => {
+                console.log('Service Worker registration failed:', error);
+            });
+    });
+    
+    // Handle updates
+    navigator.serviceWorker.addEventListener('controller change', () => {
+        console.log('Service Worker updated');
+        window.location.reload();
+    });
+}
+
+// Request notification permission on app load (optional)
+if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+}
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,21 @@
+# Include production dependencies
+-r requirements.txt
+
+# Type Stubs (fixes yellow warnings in VS Code)
+types-cryptography==42.0.0.20240516
+types-requests==2.31.0.10
+types-Flask==4.0.11
+types-python-dateutil==2.8.20
+
+# Testing
+pytest==7.4.4
+pytest-cov==4.1.0
+
+# Code Quality
+black==24.1.1
+flake8==7.0.0
+mypy==1.8.0
+pylint==3.0.3
+
+# Development Tools
+ipython==8.20.0

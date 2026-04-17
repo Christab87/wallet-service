@@ -1,0 +1,13 @@
+<!-- 
+PLACEHOLDER: Screenshot 1 (540x720)
+
+This is a placeholder for the app screenshot shown in app stores.
+Generate actual screenshots by taking a screenshot of the app showing:
+- Wallet balance display
+- Bitcoin price chart
+- Mint list
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 720">
+  <rect width="540" height="720" fill="#1a1a2e"/>
+  <text x="270" y="360" font-size="24" text-anchor="middle" fill="#22c55e" font-family="Arial">E-Wallet</text>
+</svg>
