@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # E-Wallet - Cashu Implementation
 
 A complete Cashu e-wallet implementation with Lightning Network integration for privacy-preserving digital payments.
@@ -143,3 +144,7 @@ This is an experimental implementation. Use with caution in production environme
 - [Cashu Protocol](https://github.com/cashubtc/cashu)
 - [Blind Signatures](https://en.wikipedia.org/wiki/Blind_signature)
 - [Lightning Network](https://lightning.network/)
+=======
+# wallet-service
+Cashu e-wallet with blind signatures, Lightning support, and anonymous payment tokens
+>>>>>>> c2618bc00317c460237bb9fd6ba2b7b3c8b0602e
