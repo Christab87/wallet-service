@@ -1,17 +1,6 @@
 #!/usr/bin/env python
-"""
-Full Cashu e-wallet flow test.
-
-This script demonstrates a complete Cashu payment flow:
-1. Mint new proofs (100 sats) using Lightning
-2. Send proofs to another wallet via swap
-3. Receive the blinded outputs
-4. Melt proofs back to Lightning
-
-Requires both servers running:
-- Mint server: python backend/mint/server.py (port 5001)
-- Wallet server: python backend/app.py (port 8000)
-"""
+# Full Cashu e-wallet flow test
+# Mint new proofs, send via swap, receive outputs, melt to Lightning
 
 import sys
 import os
@@ -36,7 +25,7 @@ MINT_URL = "http://localhost:5001"
 WALLET_URL = "http://localhost:8000"
 
 def test_mint_flow():
-    """Test minting new proofs."""
+    # Test minting new proofs
     print("\n" + "="*60)
     print("TEST 1: MINT FLOW (100 sats)")
     print("="*60)
@@ -99,7 +88,7 @@ def test_mint_flow():
     return True
 
 def test_send_flow():
-    """Test sending proofs via swap."""
+    # Test sending proofs via swap
     print("\n" + "="*60)
     print("TEST 2: SEND FLOW (50 sats via swap)")
     print("="*60)
@@ -139,7 +128,7 @@ def test_send_flow():
     return True
 
 def test_melt_flow():
-    """Test melting proofs to Lightning."""
+    # Test melting proofs to Lightning
     print("\n" + "="*60)
     print("TEST 3: MELT FLOW (Lightning redemption)")
     print("="*60)

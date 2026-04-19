@@ -1,5 +1,5 @@
 """
-Enhanced Cashu models for production protocol support.
+Enhanced Cashu models.
 """
 
 from datetime import datetime
@@ -7,7 +7,7 @@ from typing import Optional, Dict, List
 
 
 class Proof:
-    """Ecash proof - represents ownership of satoshis."""
+    # Ecash proof representing ownership of satoshis
     
     def __init__(
         self,
@@ -56,7 +56,7 @@ class Proof:
 
 
 class Quote:
-    """Mint or Melt quote - represents a time-bound transaction request."""
+    # Mint or Melt quote representing time-bound transaction
     
     def __init__(
         self,
@@ -78,7 +78,7 @@ class Quote:
         self.mint_url = mint_url
     
     def is_expired(self) -> bool:
-        """Check if quote has expired."""
+        # Check if quote has expired
         if not self.expires_at:
             return False
         expires = datetime.fromisoformat(self.expires_at)
@@ -109,7 +109,7 @@ class Quote:
 
 
 class KeySet:
-    """Mint's signing keyset - tracks public keys for proof verification."""
+    # Public keyset for proof verification
     
     def __init__(
         self,
@@ -146,7 +146,7 @@ class KeySet:
 
 
 class Token:
-    """Cashu token - a portable unit of value."""
+    # Portable unit of value
     
     def __init__(self, mint: str, proofs: List[Proof]):
         self.mint = mint

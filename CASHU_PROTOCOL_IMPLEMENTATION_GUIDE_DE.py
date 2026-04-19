@@ -1,65 +1,20 @@
-"""
-═══════════════════════════════════════════════════════════════════════════════
-   CASHU PROTOKOLL IMPLEMENTIERUNGSLEITFADEN
-   Komplette Code-Logik & Dokumentation (Deutsch)
-
-   Dieses Dokument dokumentiert die Implementierung von:
-    Blind Signing (RSA-PSS)
-    Mint-Protokoll (Generieren → Signieren → Entblindes)
-    Swap-Protokoll (Beweis-Austausch)
-    Melt-Protokoll (Quote + Rückzug)
-    Quote-Verwaltung (Ablauf, Zustandsverfolgung)
-
-   Referenzierte Dateien:
-   - backend/crypto/blind_signing.py (RSA-Kryptografie)
-   - backend/core/cashu.py (Protokoll-Client)
-   - backend/mint/server.py (Mock-Mint-Server)
-   - backend/models/cashu.py (Datenmodelle)
-═══════════════════════════════════════════════════════════════════════════════
-"""
+# Cashu Protocol Implementation Guide (German)
+# Blind signing, mint protocol, swap, melt, quote management
 
 # ==============================================================================
 # TEIL 1: BLIND SIGNING (RSA-PSS)
 # ==============================================================================
-"""
-Das Blind Signing-Protokoll stellt sicher:
-1. Benutzer erstellt ein Geheimnis und verblindet es
-2. Mint signiert das blinde Engagement (sieht das Geheimnis nicht)
-3. Benutzer entblindet zum Erhalten einer gültigen ausgebbaren Signatur
-4. Niemand kann die verblindete Nachricht mit dem entblindeten Beweis verknüpfen
-
-Dies ermöglicht kryptografischen Datenschutz: Selbst die Mint kann nicht sagen,
-welcher Benutzer welchen Beweis erstellt hat oder Ausgabenmuster verfolgen.
-"""
+# Part 1: Blind signing protocol (RSA-PSS)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SCHRITT 1: Verblindete Nachricht generieren (Benutzer-Operation)
 # ─────────────────────────────────────────────────────────────────────────────
 
 class BlindSigningStep1:
-    """Benutzer erstellt ein blinde Engagement zum Verstecken seines Geheimnisses."""
+    # User creates blinded message
     
     def generate_blinded_message(amount: int, secret: str):
-        """
-        CLIENT-OPERATION: Erstelle eine verblindete Nachricht für ein Geheimnis.
-        
-        Das Geheimnis ist die Verpflichtung des Benutzers zu diesem Beweis. Es wird
-        gehasht und dann verblind, so dass die Mint nur die verblindete Version B_
-        sieht, nicht das Geheimnis.
-        
-        Weg:
-        1. Geheimnis hashen: Geheimnis_hash = SHA256(Geheimnis)
-        2. Zufälligen Verblindungsfaktor generieren: r = zufällig(32 Bytes)
-        3. Verblindes: B_ = SHA256(Geheimnis_hash + r)
-        4. B_ an Mint senden, Geheimnis und r privat halten
-        
-        Gibt eine BlindedMessage mit zurück:
-        - B_: Verblindetes Engagement an Mint senden
-        - r: Verblindungsfaktor geheim halten
-        - amount: Der Wert dieses Engagements
-        
-        Die Mint sieht niemals 'Geheimnis' oder 'r', nur 'B_'.
-        """
+        # Generate blinded message for secret
         
         # Schritt 1: Geheimnis des Benutzers hashen
         secret_hash = hashlib.sha256(secret.encode()).digest()
@@ -93,11 +48,10 @@ class BlindSigningStep1:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class BlindSigningStep2:
-    """Mint signiert die verblindete Nachricht ohne das Geheimnis zu sehen."""
+    # Mint signs blinded message
     
     def blind_sign(blinded_message: BlindedMessage, private_key_pem: str):
-        """
-        MINT-OPERATION: Signiere eine verblindete Nachricht.
+        # Mint signs blinded message
         
         Der Schlüssel-Insight: Die Mint signiert die verblindete Nachricht B_,
         nicht das Geheimnis. Da es verblind ist, lernt die Mint nicht, was das
@@ -160,11 +114,10 @@ class BlindSigningStep2:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class BlindSigningStep3:
-    """Benutzer entblindet die Signatur um einen gültigen, ausgebbaren Beweis zu erhalten."""
+    # User unblinds signature to get spendable proof
     
     def unblind_signature(blind_signature: BlindSignature, blinding_factor: str):
-        """
-        CLIENT-OPERATION: Entblinde die Signatur um einen ausgebbaren Beweis zu erhalten.
+        # Unblind signature to create spendable proof
         
         Jetzt nimmt der Benutzer die Blindsignatur C_ und seinen geheimen Verblindungs-
         faktor r und erstellt eine entblindete Signatur C, die ausgegeben werden kann.
@@ -205,12 +158,10 @@ class BlindSigningStep3:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class BlindSigningStep4:
-    """Verifizieren Sie den DLEQ-Beweis (Discrete Log Equivalence)."""
+    # Verify DLEQ proof
     
     def verify_dleq_proof(proof_secret: str, commitment: str, dleq_proof: dict):
-        """
-        OPTIONAL: Verifizieren Sie, dass das Engagement mit dem Geheimnis übereinstimmt
-        mit DLEQ.
+        # Verify DLEQ proof (simplified check)
         
         DLEQ-Beweis überprüft: "Das Engagement C entspricht dem Geheimnis auf die
         gleiche Weise, wie C_ B_ entspricht" ohne das Geheimnis offenzulegen.
@@ -274,11 +225,10 @@ Ergebnis: Client hat 100 Sats in Proofs (Ecash-Tokens)
 # ─────────────────────────────────────────────────────────────────────────────
 
 class MintProtocolPhase1:
-    """Mint-Quote von der Mint anfordern."""
+    # Request mint quote
     
     def request_mint_quote(mint_url: str, amount: int):
-        """
-        CLIENT-OPERATION: Mint-Quote anfordern.
+        # Request mint quote from mint
         
         Schritt 1 des Minting: Client fordert Mint Quote an.
         Mint gibt eine Lightning-Rechnung zurück zum Bezahlen.
@@ -333,11 +283,10 @@ class MintProtocolPhase1:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class MintProtocolPhase2:
-    """Minting-Prozess durch Austausch verblindeter Nachrichten für Signaturen fertigstellen."""
+    # Mint protocol: finish minting process
     
     def finish_mint(mint_url: str, quote: Quote):
-        """
-        CLIENT-OPERATION: Mint-Prozess fertigstellen.
+        # Finish minting: create blinded messages and receive signatures
         
         Schritt 2 des Minting: 
         1. Verblindete Nachrichten für jede Stückelung generieren
@@ -461,7 +410,7 @@ sie nach der Erstellung nicht ausgeben.
 """
 
 class SwapProtocol:
-    """Proofs für blinde Outputs austauschen."""
+    # Swap proofs for blinded outputs
     
     def client_swap(mint_url: str, proofs_to_send: List[Proof], 
                     output_amounts: List[int]):
@@ -535,28 +484,12 @@ Ergebnis: Client hat reale Lightning Sats empfangen (oder Fiat-Äquivalent)
 """
 
 class MeltProtocolPhase1:
-    """Melt-Quote anfordern."""
+    # Request melt quote
     
     def client_request_melt_quote(mint_url: str, invoice: str, amount: int):
-        """
-        CLIENT-OPERATION: Melt-Quote anfordern.
+        # Request melt quote
         
-        Schritt 1 des Meltings: Client möchte Sats zu Fiat/Lightning einlösen.
-        Stellt Lightning-Rechnung zur Zahlung bereit.
-        
-        Args:
-            mint_url: Mint-Server-URL
-            invoice: Lightning-Rechnung (z.B. "lnbc100u1p...")
-            amount: Sats zum Einlösen
-        
-        Returns:
-            Quote mit:
-            - Quote_ID: Melt-Quote-ID
-            - amount: Eingelöster Betrag
-            - expires_at: 5-Minuten-Ablauf
-        """
-        
-        # Schritt 1: Anfrage an Mint senden
+        # Step 1: Send request to mint
         response = requests.post(
             f"{mint_url}/requestmelt",
             json={
@@ -583,12 +516,11 @@ class MeltProtocolPhase1:
 
 
 class MeltProtocolPhase2:
-    """Melt-Prozess fertigstellen durch Proofs-Rückzug."""
+    # Finish melt process
     
     def client_finish_melt(mint_url: str, quote: Quote, 
                           proofs: List[Proof]) -> bool:
-        """
-        CLIENT-OPERATION: Melt-Prozess fertigstellen.
+        # Finish melting: redeem proofs
         
         Schritt 2 des Meltings: Proofs an Mint zur Einlösung senden.
         
@@ -640,11 +572,11 @@ Ablauf: 5 Minuten ab Erstellung
 """
 
 class QuoteManagement:
-    """Quote-Lebenszyklusverwaltung."""
+    # Quote lifecycle management
     
-    # Quote-Modell (backend/models/cashu.py)
+    # Quote model
     class Quote:
-        """Stellt eine Mint- oder Melt-Quote dar."""
+        # Mint or Melt quote representation
         
         def __init__(
             self,
@@ -679,16 +611,7 @@ class QuoteManagement:
         
         
         def is_expired(self) -> bool:
-            """
-            Überprüfen Sie, ob Quote abgelaufen ist.
-            
-            Quotes sind 5 Minuten lang gültig. Danach:
-            - Mint verwirft die Quote
-            - Benutzer muss eine neue anfordern
-            
-            Returns:
-                True wenn aktuelle Zeit > expires_at, False sonst
-            """
+            # Check if quote has expired
             if not self.expires_at:
                 return False
             
@@ -700,7 +623,7 @@ class QuoteManagement:
         
         
         def to_dict(self) -> dict:
-            """Für Speicherung serialisieren."""
+            # Serialize quote for storage
             return {
                 "quote_id": self.quote_id,
                 "amount": self.amount,
@@ -715,16 +638,15 @@ class QuoteManagement:
     
     # Wallet-Quote-Verfolgung
     class WalletQuoteTracking:
-        """Verfolgen Sie ausstehende Quotes im Wallet."""
+        # Track pending quotes in wallet
         
         def __init__(self):
-            """Initialisiere Quote-Verfolgung."""
+            # Initialize quote tracking
             self.pending_quotes = {}  # {Quote_ID: Quote}
         
         
         def add_quote(self, quote: Quote):
-            """
-            Füge neue Quote zu ausstehender Liste hinzu.
+            # Add quote to pending list
             
             Aufgerufen, wenn:
             - Benutzer Mint-Quote anfordert
@@ -742,8 +664,7 @@ class QuoteManagement:
         
         
         def get_quote(self, quote_id: str) -> Optional[Quote]:
-            """
-            Get a Quote by ID.
+            # Get quote by ID
             
             Vor Verwendung überprüfen:
             - Quote existiert
@@ -760,8 +681,7 @@ class QuoteManagement:
         
         
         def remove_quote(self, quote_id: str):
-            """
-            Quote nach Abschluss entfernen.
+            # Remove quote after completion
             
             Aufgerufen, wenn:
             - finish_mint() erfolgreich

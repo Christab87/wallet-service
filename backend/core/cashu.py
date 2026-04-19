@@ -1,12 +1,4 @@
-"""
-Real Cashu wallet client - implements full protocol communication with mint.
-
-Implements:
-- Mint quotes and blinded message generation
-- Proof receipt and DLEQ verification
-- Swap operations with DHE outputs
-- Melt quotes and Lightning redemption
-"""
+# Cashu wallet client for mint communication
 
 import requests
 from typing import List, Optional, Tuple
@@ -17,25 +9,15 @@ from crypto import crypto, BlindedMessage, BlindSignature
 
 
 class CashuClient:
-    """Client for communicating with a Cashu mint."""
+    # Client for communicating with a Cashu mint
     
     def __init__(self, mint_url: str):
-        """
-        Initialize client for a specific mint.
-        
-        Args:
-            mint_url: Base URL of the mint (e.g., "http://localhost:5001")
-        """
+        # Initialize client for mint endpoint
         self.mint_url = mint_url.rstrip("/")
         self.keyset_cache: Optional[KeySet] = None
     
     def fetch_keysets(self) -> KeySet:
-        """
-        Fetch the mint's current public key set.
-        
-        Returns:
-            KeySet with public keys indexed by amount
-        """
+        # Fetch mint's public key set
         try:
             resp = requests.get(
                 f"{self.mint_url}/keys",
@@ -67,19 +49,7 @@ class CashuClient:
             raise RuntimeError(f"Failed to fetch keys from {self.mint_url}: {str(e)}")
     
     def request_mint_quote(self, amount: int) -> Quote:
-        """
-        Request a mint quote from the mint.
-        
-        This is step 1 of minting:
-        Client → Mint: "I want to mint X sats"
-        Mint → Client: "Here's a quote, pay this Lightning invoice"
-        
-        Args:
-            amount: Satoshis to mint
-        
-        Returns:
-            Quote with invoice request
-        """
+        # Request mint quote from mint
         try:
             resp = requests.post(
                 f"{self.mint_url}/requestmint",
@@ -112,20 +82,7 @@ class CashuClient:
         self,
         quote: Quote
     ) -> List[Proof]:
-        """
-        Finish the mint process - provide blinded messages and receive proofs.
-        
-        This is step 2 of minting:
-        Client → Mint: [blinded messages B_1, B_2, ...]
-        Mint → Client: [blind signatures C_1, C_2, ...]
-        Client: Unblinds signatures to get spendable proofs
-        
-        Args:
-            quote: The quote from request_mint_quote
-        
-        Returns:
-            List of Proof objects (now spendable)
-        """
+        # Finish minting: send blinded messages, receive proofs
         if quote.quote_type != "mint":
             raise ValueError("Quote must be a mint quote")
         
@@ -206,16 +163,7 @@ class CashuClient:
         return proofs
     
     def request_melt_quote(self, invoice: str, amount: int) -> Quote:
-        """
-        Request a melt quote to redeem proofs as Lightning.
-        
-        Args:
-            invoice: Lightning invoice to pay
-            amount: Amount of sats to redeem
-        
-        Returns:
-            Quote confirming the melt terms
-        """
+        # Request melt quote to redeem proofs as Lightning
         try:
             resp = requests.post(
                 f"{self.mint_url}/requestmelt",
@@ -247,16 +195,7 @@ class CashuClient:
             raise RuntimeError(f"Failed to request melt quote: {str(e)}")
     
     def finish_melt(self, quote: Quote, proofs: List[Proof]) -> bool:
-        """
-        Finish the melt process - redeem proofs for Lightning payment.
-        
-        Args:
-            quote: The melt quote from request_melt_quote
-            proofs: Proofs to redeem
-        
-        Returns:
-            True if melt successful
-        """
+        # Finish melting: redeem proofs for Lightning payment
         if quote.quote_type != "melt":
             raise ValueError("Quote must be a melt quote")
         
@@ -293,18 +232,8 @@ class CashuClient:
         proofs: List[Proof],
         output_amounts: List[int]
     ) -> List[dict]:
-        """
-        Swap proofs for blinded outputs (for sending to another wallet).
+        # Swap proofs for blinded outputs to send to another wallet
         
-        This creates blind-signed outputs that only the recipient can use.
-        
-        Args:
-            proofs: Proofs to swap
-            output_amounts: Desired output amounts [e.g., 64, 32, 4]
-        
-        Returns:
-            List of blind output dicts with B_ and C_
-        """
         total_proofs = sum(p.amount for p in proofs)
         total_outputs = sum(output_amounts)
         

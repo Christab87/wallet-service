@@ -39,7 +39,7 @@ VALID_PROOFS = {}  # {proof_C: {amount, keyset_version, created_at}}
 
 
 def init_mint():
-    """Initialize mint keyset."""
+    # Initialize mint keyset
     global MINT_PRIVATE_KEY, MINT_PUBLIC_KEY
     
     pub, priv = crypto.generate_keyset()
@@ -50,7 +50,7 @@ def init_mint():
 
 @app.route("/keys", methods=["GET"])
 def get_keys():
-    """Return mint's public keys for verification."""
+    # Return mint's public keys for verification
     return jsonify({
         "keysets": [
             {
@@ -78,12 +78,7 @@ def get_keys():
 
 @app.route("/requestmint", methods=["POST"])
 def request_mint():
-    """
-    Request a mint quote.
-    
-    Client: "I want to mint 1000 sats"
-    Mint: "Pay this Lightning invoice, get quote_id"
-    """
+    # Request mint quote
     data = request.json
     amount = int(data.get("amount", 0))
     
@@ -115,12 +110,7 @@ def request_mint():
 
 @app.route("/mint", methods=["POST"])
 def mint():
-    """
-    Finish minting - blind sign the proofs.
-    
-    Client sends: quote_id + blinded messages
-    Mint: Verify quote is paid, sign blindly
-    """
+    # Finish minting: blind sign proofs
     data = request.json
     quote_id = data.get("quote")
     blinded_messages = data.get("blinded_messages", [])
@@ -180,12 +170,7 @@ def mint():
 
 @app.route("/requestmelt", methods=["POST"])
 def request_melt():
-    """
-    Request a melt quote.
-    
-    Client: "I want to redeem X sats via this Lightning invoice"
-    Mint: "OK, here's a melt quote with 5 min timeout"
-    """
+    # Request melt quote
     data = request.json
     invoice = data.get("pr", "")
     amount = data.get("amount", 0)
@@ -217,12 +202,7 @@ def request_melt():
 
 @app.route("/melt", methods=["POST"])
 def melt():
-    """
-    Finish melting - redeem proofs for Lightning payout.
-    
-    Client sends: proofs to redeem + quote_id
-    Mint: Verify proofs, mark as spent, pay Lightning
-    """
+    # Finish melting: redeem proofs for Lightning payout
     data = request.json
     quote_id = data.get("quote")
     proofs = data.get("proofs", [])
@@ -253,13 +233,7 @@ def melt():
 
 @app.route("/swap", methods=["POST"])
 def swap():
-    """
-    Swap proofs for blinded outputs.
-    
-    Client: "I want to send 1000 sats. Here are my proofs. Give me blinded outputs."
-    Mint: Verifies proofs, creates blinded outputs blind-signed
-    Client: Can blind-send the outputs to another wallet
-    """
+    # Swap proofs for blinded outputs to send
     data = request.json
     proofs = data.get("proofs", [])
     output_amounts = data.get("output_amounts", [])
@@ -311,7 +285,7 @@ def swap():
 
 @app.route("/health", methods=["GET"])
 def health_check():
-    """Health check endpoint."""
+    # Health check endpoint
     return jsonify({
         "status": "ok",
         "mint_id": MINT_ID,

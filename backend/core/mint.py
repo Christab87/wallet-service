@@ -1,15 +1,11 @@
-"""Mock Cashu mint service (legacy).
-
-Note: This is superseded by the standalone mint_server.py.
-Kept for reference but not actively used.
-"""
+# Mock Cashu mint service (legacy - superseded by mint_server.py)
 
 import uuid
 from typing import List
 
 
 class MintService:
-    """Legacy mock Cashu mint."""
+    # Legacy mock Cashu mint
 
     def __init__(self):
         # Initialize with default local mint server
@@ -38,7 +34,7 @@ class MintService:
         return mint_id
 
     def add_mint_from_url(self, url: str, name: str = None) -> str:
-        """Add a mint by URL."""
+        # Add mint by URL
         mint_id = str(uuid.uuid4())
         if not name:
             name = url.split("/")[-1] if url != "http://localhost:5001" else "Local Mint"
@@ -55,7 +51,7 @@ class MintService:
         return list(self.mints)
     
     def get_mint_by_url(self, url: str):
-        """Get mint details by URL."""
+        # Get mint details by URL
         for mint in self.mints:
             if mint.get("url") == url:
                 return mint

@@ -76,7 +76,7 @@ def get_bitcoin_price():
 
 
 def get_historical_bitcoin_price(days=7):
-    """Fetch historical Bitcoin price data for the past N days (USD only)"""
+    # Fetch historical Bitcoin price data
     global _last_historical_price, _last_historical_fetch_time
     
     now = time.time()

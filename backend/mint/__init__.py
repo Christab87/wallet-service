@@ -1,1 +1,1 @@
-"""Cashu Mint Server module."""
+# Cashu Mint Server module

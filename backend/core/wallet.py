@@ -87,31 +87,31 @@ class WalletService:
     # --- Cashu Protocol State Management ---
     
     def add_quote(self, quote: Quote) -> None:
-        """Track a pending mint or melt quote."""
+        # Track pending mint or melt quote
         self.pending_quotes[quote.quote_id] = quote
         print(f"[Wallet] Added {quote.quote_type} quote {quote.quote_id}")
     
     def get_quote(self, quote_id: str) -> Optional[Quote]:
-        """Retrieve a quote by ID."""
+        # Retrieve quote by ID
         return self.pending_quotes.get(quote_id)
     
     def remove_quote(self, quote_id: str) -> None:
-        """Remove a quote (after completion)."""
+        # Remove quote after completion
         if quote_id in self.pending_quotes:
             del self.pending_quotes[quote_id]
             print(f"[Wallet] Removed quote {quote_id}")
     
     def get_active_quotes(self) -> List[Quote]:
-        """Get all non-expired pending quotes."""
+        # Get all non-expired pending quotes
         return [q for q in self.pending_quotes.values() if not q.is_expired()]
     
     def cache_keyset(self, mint_url: str, keyset: KeySet) -> None:
-        """Cache a mint's keyset locally."""
+        # Cache mint's keyset locally
         self.keysets[mint_url] = keyset
         print(f"[Wallet] Cached keyset for {mint_url}")
     
     def get_keyset(self, mint_url: str) -> Optional[KeySet]:
-        """Retrieve cached keyset for a mint."""
+        # Retrieve cached keyset for mint
         return self.keysets.get(mint_url)
 
     def _save(self):

@@ -57,7 +57,7 @@ def serve_frontend():
 
 @app.route("/static/manifest.json")
 def serve_manifest():
-    """Serve PWA manifest with proper headers"""
+    # Serve PWA manifest
     response = send_from_directory("static", "manifest.json")
     response.headers['Content-Type'] = 'application/manifest+json'
     response.headers['Cache-Control'] = 'public, max-age=3600'
@@ -66,7 +66,7 @@ def serve_manifest():
 
 @app.route("/static/sw.js")
 def serve_service_worker():
-    """Serve service worker with no-cache headers"""
+    # Serve service worker
     response = send_from_directory("static", "sw.js")
     response.headers['Content-Type'] = 'application/javascript'
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
@@ -75,7 +75,7 @@ def serve_service_worker():
 
 @app.route("/offline.html")
 def offline_page():
-    """Fallback page for offline mode"""
+    # Serve offline fallback page
     return send_from_directory("static", "index.html")
 
 
@@ -87,7 +87,7 @@ def get_mints():
 
 @app.route("/api/mints/add", methods=["POST"])
 def add_mint():
-    """Add a new mint by URL."""
+    # Add a new mint by URL
     data = request.json
     url = data.get("url")
     name = data.get("name")
@@ -130,15 +130,7 @@ def receive():
 
 @app.route("/api/send", methods=["POST"])
 def send():
-    """
-    Send sats by performing a Cashu swap with the mint.
-    
-    Process:
-    1. Select proofs covering the amount
-    2. Request swap from mint (swap proofs for blinded outputs)
-    3. Mint returns blind-signed outputs (recipient can unblind them)
-    4. Encode outputs as token for sending to recipient
-    """
+    # Send sats by performing Cashu swap
     data = request.json
     amount = int(data["amount"])
     mint_url = data.get("mint", "http://localhost:5001")
@@ -221,12 +213,7 @@ def send():
 
 @app.route("/api/mint/request", methods=["POST"])
 def mint_request():
-    """
-    Request a mint quote from the mint.
-    
-    Step 1: User says "I want to mint X sats"
-    Returns: Lightning invoice to pay
-    """
+    # Request mint quote from mint
     data = request.json
     amount = int(data.get("amount", 0))
     mint_url = data.get("mint", "http://localhost:5001")
@@ -251,12 +238,7 @@ def mint_request():
 
 @app.route("/api/mint/finish", methods=["POST"])
 def mint_finish():
-    """
-    Finish minting - exchange blinded messages for proofs.
-    
-    Step 2: After Lightning payment, finish mint to get proofs
-    Returns: List of Proof objects added to wallet
-    """
+    # Finish minting: exchange blinded messages for proofs
     data = request.json
     quote_id = data.get("quote_id")
     
@@ -296,12 +278,7 @@ def mint_finish():
 
 @app.route("/api/melt/request", methods=["POST"])
 def melt_request():
-    """
-    Request a melt quote to redeem proofs as Lightning.
-    
-    Step 1: User says "redeem these proofs as Lightning"
-    Returns: Melt quote with timeout
-    """
+    # Request melt quote to redeem proofs as Lightning
     data = request.json
     amount = int(data.get("amount", 0))
     invoice = data.get("invoice", "")
@@ -327,12 +304,7 @@ def melt_request():
 
 @app.route("/api/melt/finish", methods=["POST"])
 def melt_finish():
-    """
-    Finish melting - redeem proofs for Lightning payout.
-    
-    Step 2: Provide proofs matching the melt quote amount
-    Returns: Confirmation that Lightning was paid
-    """
+    # Finish melting: redeem proofs for Lightning payout
     data = request.json
     quote_id = data.get("quote_id")
     
@@ -406,7 +378,7 @@ def btc_price():
 
 @app.route("/api/btc-price-history")
 def btc_price_history():
-    """Fetch Bitcoin price history for the last 7 days"""
+    # Get Bitcoin price history for last 7 days
     try:
         days = request.args.get("days", 7, type=int)
         history = get_historical_bitcoin_price(days)
@@ -422,7 +394,7 @@ def btc_price_history():
 
 @app.route("/api/debug/proofs")
 def debug_proofs():
-    """Debug endpoint to see all proofs in wallet"""
+    # Debug endpoint to view wallet proofs
     proofs_info = []
     for p in wallet.proofs:
         proofs_info.append({
