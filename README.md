@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # E-Wallet - Cashu Implementation
 
 A complete Cashu e-wallet implementation with Lightning Network integration for privacy-preserving digital payments.
