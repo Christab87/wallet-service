@@ -18,7 +18,6 @@ A complete Cashu e-wallet implementation with Lightning Network integration for 
 
 ![E-Wallet Interface](docs/screenshot/Wallet.png)
 
-*The wallet interface showing balance, transactions, and Cashu proof management.*
 
 ## Project Structure
 
