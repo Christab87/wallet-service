@@ -16,6 +16,7 @@ app = Flask(__name__, static_folder="static")
 
 # Add PWA headers to all responses
 @app.after_request
+# Add cache and security headers
 def add_header(response):
     # Prevent caching of HTML
     if 'text/html' in response.headers.get('Content-Type', ''):
@@ -51,6 +52,7 @@ mint_service = MintService()
 
 # Frontend routes
 @app.route("/")
+# Serve main frontend HTML
 def serve_frontend():
     return send_from_directory("static", "index.html")
 
@@ -81,6 +83,7 @@ def offline_page():
 
 # API endpoints
 @app.route("/api/mints")
+# Get list of available mints
 def get_mints():
     return jsonify({"mints": mint_service.get_mints()})
 
@@ -104,12 +107,14 @@ def add_mint():
 
 
 @app.route("/api/wallet/balance")
+# Get wallet balance for mint
 def get_balance():
     mint = request.args.get("mint")
     return jsonify({"balance": wallet.get_balance(mint)})
 
 
 @app.route("/api/receive", methods=["POST"])
+# Receive Cashu token and add proofs to wallet
 def receive():
     data = request.json
     token = data.get("token")
@@ -359,11 +364,13 @@ def melt_finish():
 
 
 @app.route("/api/transactions")
+# Get transaction history
 def transactions():
     return jsonify({"transactions": wallet.get_transactions()})
 
 
 @app.route("/api/btc-price")
+# Get current Bitcoin price
 def btc_price():
     try:
         prices = get_bitcoin_price()
@@ -411,6 +418,7 @@ def debug_proofs():
 
 
 @app.route("/api/health")
+# Health check endpoint
 def health():
     return {"status": "running"}
 

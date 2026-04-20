@@ -20,6 +20,7 @@ FALLBACK_PRICES = {
 }
 
 
+# Get current Bitcoin price
 def get_bitcoin_price():
     global _last_price, _last_fetch_time, _rate_limited_until
 
@@ -75,6 +76,7 @@ def get_bitcoin_price():
         return FALLBACK_PRICES
 
 
+# Get historical Bitcoin price data
 def get_historical_bitcoin_price(days=7):
     # Fetch historical Bitcoin price data
     global _last_historical_price, _last_historical_fetch_time

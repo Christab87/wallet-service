@@ -3,6 +3,7 @@ import base64
 from models.proof import Proof
 
 
+# Encode proofs as Cashu token
 def encode_token(proofs: list[Proof], mint: str) -> str:
     payload = {
         "token": [
@@ -19,6 +20,7 @@ def encode_token(proofs: list[Proof], mint: str) -> str:
     return f"cashuA{b64}"
 
 
+# Decode Cashu token to proofs
 def decode_token(token: str) -> list[Proof]:
     if not token.startswith("cashuA"):
         raise ValueError("Invalid token format")

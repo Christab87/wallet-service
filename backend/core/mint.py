@@ -22,6 +22,7 @@ class MintService:
     def create_mint(
         self, amount: int, name: str
     ) -> str:
+        # Create a new mint
         mint_id = str(uuid.uuid4())
         self.mints.append(
             {
@@ -48,6 +49,7 @@ class MintService:
         return mint_id
 
     def get_mints(self) -> List:
+        # Get all mints
         return list(self.mints)
     
     def get_mint_by_url(self, url: str):

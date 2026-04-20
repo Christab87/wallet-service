@@ -5,6 +5,7 @@ from models.cashu import Quote, KeySet
 
 
 class WalletService:
+    # Initialize wallet service with storage backend
     def __init__(self, storage):
         self.storage = storage
 
@@ -37,11 +38,13 @@ class WalletService:
         self.pending_quotes: Dict[str, Quote] = {}  # {quote_id: Quote}
         self.keysets: Dict[str, KeySet] = {}  # {mint_url: KeySet}
 
+    # Get wallet balance by mint
     def get_balance(self, mint=None):
         if mint:
             return sum(p.amount for p in self.proofs if p.mint == mint)
         return sum(p.amount for p in self.proofs)
 
+    # Add proofs to wallet
     def add_proofs(self, proofs: List[Proof]):
         if isinstance(proofs, tuple):
             proofs = list(proofs)
@@ -49,12 +52,14 @@ class WalletService:
         self.proofs.extend(proofs)
         self._save()
 
+    # Remove proofs from wallet
     def remove_proofs(self, proofs: List[Proof]):
         for p in proofs:
             if p in self.proofs:
                 self.proofs.remove(p)
         self._save()
 
+    # Get proofs covering amount
     def get_proofs_for_amount(self, amount, mint):
         selected = []
         total = 0
@@ -71,6 +76,7 @@ class WalletService:
 
         raise ValueError("Not enough balance")
 
+    # Record transaction in history
     def add_transaction(self, tx_type, amount, mint):
         tx = {
             "type": tx_type,
@@ -81,6 +87,7 @@ class WalletService:
         self.transactions.append(tx)
         self._save()
 
+    # Get transaction history
     def get_transactions(self):
         return list(reversed(self.transactions))
     
