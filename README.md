@@ -24,24 +24,58 @@ A complete Cashu e-wallet implementation with Lightning Network integration for 
 ```
 e_wallet/
 ├── backend/
-│   ├── app.py                 # Wallet Flask application
-│   ├── config.py              # Configuration settings
-│   ├── wallet.dat             # Wallet database
-│   ├── client/                # Client utilities
-│   ├── core/                  # Core Cashu protocol logic
-│   ├── crypto/                # Cryptographic functions
-│   ├── mint/                  # Mint server implementation
-│   ├── models/                # Data models
-│   ├── storage/               # Storage/database layer
-│   ├── utils/                 # Utility functions
-│   └── static/                # Static web assets
+│   ├── app.py                     # Main Flask wallet application
+│   ├── config.py                  # Configuration settings
+│   ├── test_token.py              # Token encoding/decoding tests
+│   ├── wallet.dat                 # Encrypted wallet database
+│   ├── client/                    # Wallet client utilities
+│   ├── core/                      # Core Cashu protocol logic
+│   │   ├── __init__.py
+│   │   ├── cashu.py              # CashuClient implementation
+│   │   ├── wallet.py             # WalletService (proof management)
+│   │   ├── mint.py               # MintService
+│   │   └── price.py              # Bitcoin price utilities
+│   ├── crypto/                    # Cryptographic functions
+│   │   ├── __init__.py
+│   │   └── blind_signing.py      # RSA-PSS blind signatures
+│   ├── mint/                      # Mock Cashu mint server
+│   │   └── server.py              # Mock mint implementation (port 5001)
+│   ├── models/                    # Data models
+│   │   ├── __init__.py
+│   │   ├── cashu.py              # Quote, KeySet, Token models
+│   │   └── proof.py              # Proof model
+│   ├── storage/                   # Storage & encryption
+│   │   ├── __init__.py
+│   │   └── encrypted.py          # StorageService (Fernet encryption)
+│   ├── utils/                     # Utility functions
+│   │   ├── __init__.py
+│   │   └── token.py              # Token encoding/decoding
+│   └── static/                    # PWA frontend assets
 ├── tests/
-│   ├── test_cashu_flow.py    # End-to-end test flow
-│   └── __init__.py
+│   ├── __init__.py
+│   └── test_cashu_flow.py        # End-to-end integration test
 ├── docs/
-│   └── ALGORITHM_INTEGRATION.md
-├── requirements.txt           # Python dependencies
-└── requirements-dev.txt       # Development dependencies
+│   ├── screenshot/               # Project screenshots
+│   │   └── Wallet.png
+│   ├── diagrams/                 # Architecture diagrams
+│   └── Git Commands Overview/    # Git reference guide
+├── .github/                       # GitHub configuration
+│   ├── SECURITY.md               # Security policy
+│   ├── pull_request_template.md
+│   └── ISSUE_TEMPLATE/
+│       ├── bug_report.md
+│       └── feature_request.md
+├── .env.example                  # Environment configuration template
+├── .gitignore                    # Git ignore rules
+├── requirements.txt              # Python dependencies
+├── README.md                     # This file
+├── LICENSE                       # MIT License
+├── ROADMAP.md                    # Development roadmap
+├── PROJECT_STATUS.md             # Current project status
+└── Core Cashu documentation files
+    ├── ALGORITHM_INTEGRATION.md
+    ├── CASHU_PROTOCOL_IMPLEMENTATION_GUIDE_DE.md
+    └── CHAUMS_BLIND_SIGNATURE_INTEGRATION_DE.md
 ```
 
 ## Requirements
@@ -111,17 +145,32 @@ This will:
 
 ### Wallet API (port 8000)
 
-- `GET /api/wallet/balance` - Get wallet balance
-- `POST /api/mint/request` - Request mint quote
-- `POST /api/mint/finish` - Finish mint operation
-- `POST /api/send` - Send proofs
-- `POST /api/melt/request` - Request melt quote
-- `POST /api/melt/finish` - Finish melt operation
+**Wallet Management:**
+- `GET /api/wallet/balance` - Get current wallet balance
+- `GET /api/transactions` - Get transaction history
+- `GET /api/health` - Health check
+
+**Cashu Operations:**
+- `POST /api/mint/request` - Request mint quote from mint server
+- `POST /api/mint/finish` - Complete mint operation
+- `POST /api/melt/request` - Request melt quote (redeem to Lightning)
+- `POST /api/melt/finish` - Complete melt operation
+
+**Proof Management:**
+- `POST /api/send` - Send/swap proofs to another wallet
+- `POST /api/receive` - Receive proofs from a payment token
+- `GET /api/debug/proofs` - Debug endpoint to view proofs
+
+**Utilities:**
+- `GET /api/mints` - List available mints
+- `POST /api/mints/add` - Add new mint server
+- `GET /api/btc-price` - Get current Bitcoin price in USD/EUR
+- `GET /api/btc-price-history` - Get Bitcoin price history
 
 ### Mint API (port 5001)
 
 - `GET /health` - Health check
-- `POST /api/mint` - Mint proofs
+- `POST /api/mint` - Mint new proofs (internal use)
 - `POST /api/melt` - Melt proofs
 
 ## Configuration
@@ -134,9 +183,15 @@ Edit `backend/config.py` to customize:
 
 ## Development
 
-For development dependencies:
+For development and testing, uncomment optional dependencies in `requirements.txt`:
 ```bash
-pip install -r requirements-dev.txt
+# Uncomment these lines in requirements.txt, then:
+pip install -r requirements.txt
+```
+
+Or install specific tools:
+```bash
+pip install pytest pytest-cov black flake8 mypy
 ```
 
 Run tests with coverage:
