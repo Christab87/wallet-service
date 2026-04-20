@@ -9,7 +9,7 @@
 3. [Protocol Steps](#protocol-steps)
 4. [Mathematical Details](#mathematical-details)
 5. [Cashu Integration](#cashu-integration)
-6. [Implementation in Your Code](#implementation-in-your-code)
+6. [Implementation in Our Code](#implementation-in-our-code)
 7. [Security Properties](#security-properties)
 
 ---
@@ -51,7 +51,7 @@ Chaum Blind Signature (Cashu):
 
 ### RSA-PSS: The Underlying Algorithm
 
-Your implementation uses **RSA-PSS** (RSA Probabilistic Signature Scheme):
+Our implementation uses **RSA-PSS** (RSA Probabilistic Signature Scheme):
 
 ```
 RSA Components:
@@ -78,7 +78,7 @@ RSA-PSS (Probabilistic):
   Advantage: Signatures unlinkable, no pattern analysis
 ```
 
-**In your code:**
+**In our code:**
 ```python
 padding.PSS(
     mgf=padding.MGF1(hashes.SHA256()),      # Random padding
@@ -344,7 +344,7 @@ Cashu is entirely built on Chaum's blind signatures. Every transaction involves 
 
 ---
 
-## Implementation in Your Code
+## Implementation in Our Code
 
 ### File Structure
 
