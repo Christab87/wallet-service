@@ -27,11 +27,10 @@
 5. Standard token format - Current format is custom, needs NUT-00 compliance
 
 ### Important for Security
-6. Secret key management - Hardcoded password in app.py (move to .env)
-7. Input validation - Missing on API endpoints
-8. Rate limiting - No protection against spam
-9. Signature verification - Not verifying all proof signatures
-10. Error handling - Basic exception handling only
+6. Input validation - Missing on API endpoints
+7. Rate limiting - No protection against spam
+8. Signature verification - Not verifying all proof signatures
+9. Error handling - Basic exception handling only
 
 ### Important for Testing
 11. Unit tests - Only E2E test exists
