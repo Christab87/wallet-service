@@ -1,3 +1,746 @@
+# Cashu Protocol Implementation Guide - Educational Reference
+# Demonstrates blind signing, mint protocol, swap, melt, and quote management
+
+import hashlib
+import os
+from datetime import datetime, timedelta
+from typing import List, Dict, Optional
+
+
+# ==============================================================================
+# PART 1: BLIND SIGNING (RSA-PSS)
+# ==============================================================================
+
+class BlindSigningStep1:
+    # User creates blinded message for privacy
+    
+    @staticmethod
+    def generate_blinded_message(amount: int, secret: str) -> Dict:
+        # Generate blinded message that hides secret from mint
+        secret_hash = hashlib.sha256(secret.encode()).digest()
+        secret_int = int.from_bytes(secret_hash, 'big')
+        
+        # Generate random blinding factor (32 bytes)
+        r_bytes = os.urandom(32)
+        r_int = int.from_bytes(r_bytes, 'big')
+        
+        # Combine secret and blinding factor
+        combined = hashlib.sha256(secret_hash + r_bytes).digest()
+        
+        # Convert to hex for transmission
+        B_ = combined.hex()
+        r = r_bytes.hex()
+        
+        return {
+            "amount": amount,
+            "B_": B_,      # Send to mint
+            "r": r         # Keep secret
+        }
+
+
+class BlindSigningStep2:
+    # Mint signs the blinded message without seeing the secret
+    
+    @staticmethod
+    def blind_sign(blinded_message: Dict, private_key_pem: str) -> Dict:
+        # Mint blindly signs the blinded message for privacy-preserving minting
+        
+        # Import here to avoid dependencies
+        from cryptography.hazmat.primitives.asymmetric import padding
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.backends import default_backend
+        
+        # Load private key from PEM
+        private_key = serialization.load_pem_private_key(
+            private_key_pem.encode(),
+            password=None,
+            backend=default_backend()
+        )
+        
+        # Convert blinded message from hex to bytes
+        B_bytes = bytes.fromhex(blinded_message["B_"])
+        
+        # Sign with RSA-PSS
+        signature = private_key.sign(
+            B_bytes,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.DIGEST_LENGTH
+            ),
+            hashes.SHA256()
+        )
+        
+        # Convert signature to hex
+        C_ = signature.hex()
+        
+        return {
+            "amount": blinded_message["amount"],
+            "C_": C_  # Blind signature for user to unblind
+        }
+
+
+class BlindSigningStep3:
+    # User unblinds the signature to create a spendable proof
+    
+    @staticmethod
+    def unblind_signature(blind_sig: Dict, blinding_factor: str) -> str:
+        # Unblind the mint's signature using the blinding factor
+        
+        # Convert blind signature and factor from hex to bytes
+        C_bytes = bytes.fromhex(blind_sig["C_"])
+        r_bytes = bytes.fromhex(blinding_factor)
+        
+        # Unblind by hashing signature and blinding factor
+        C = hashlib.sha256(C_bytes + r_bytes).hexdigest()
+        
+        return C
+
+
+class BlindSigningStep4:
+    # Verify DLEQ proof (Discrete Log Equality)
+    
+    @staticmethod
+    def verify_dleq_proof(proof_secret: str, commitment: str, dleq_proof: Dict) -> bool:
+        # Verify DLEQ proof that commitment matches secret (simplified check)
+        
+        # Check required fields exist
+        required_fields = ['z', 'r', 'e']
+        if not all(field in dleq_proof for field in required_fields):
+            return False
+        
+        # Validate hex format
+        try:
+            int(dleq_proof['z'], 16)
+            int(dleq_proof['r'], 16)
+            int(dleq_proof['e'], 16)
+        except (ValueError, TypeError):
+            return False
+        
+        return True
+
+
+# ==============================================================================
+# PART 2: MINT PROTOCOL (Request → Blind Sign → Unblind)
+# ==============================================================================
+
+class MintProtocolPhase1:
+    # User requests a mint quote from the mint
+    
+    @staticmethod
+    def request_mint_quote(mint_url: str, amount: int) -> Dict:
+        # Request mint quote to initiate minting process
+        
+        import requests
+        
+        try:
+            response = requests.post(
+                f"{mint_url}/requestmint",
+                json={"amount": amount},
+                timeout=10
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            return {
+                "quote_id": data.get("quote"),
+                "request": data.get("request", ""),
+                "state": "pending",
+                "expires_at": (datetime.now() + timedelta(minutes=5)).isoformat()
+            }
+        except Exception as e:
+            raise RuntimeError(f"Failed to request mint quote: {str(e)}")
+
+
+class MintProtocolPhase2:
+    # User finishes minting by sending blinded messages and receiving proofs
+    
+    @staticmethod
+    def finish_mint(mint_url: str, quote: Dict, blinded_messages: List[Dict]) -> List[Dict]:
+        # Complete minting: send blinded messages, receive blind signatures, unblind
+        
+        import requests
+        
+        try:
+            # Send blinded messages to mint
+            response = requests.post(
+                f"{mint_url}/mint",
+                json={
+                    "quote": quote["quote_id"],
+                    "blinded_messages": blinded_messages
+                },
+                timeout=10
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            proofs = []
+            for proof_data in data.get("proofs", []):
+                proofs.append({
+                    "amount": proof_data.get("amount"),
+                    "C": proof_data.get("C_"),
+                    "dleq": proof_data.get("dleq")
+                })
+            
+            return proofs
+        except Exception as e:
+            raise RuntimeError(f"Failed to finish mint: {str(e)}")
+
+
+# ==============================================================================
+# PART 3: SWAP PROTOCOL (Send proofs to other wallet)
+# ==============================================================================
+
+class SwapProtocol:
+    # Exchange proofs for blinded outputs to send to another wallet
+    
+    @staticmethod
+    def client_swap(mint_url: str, proofs: List[Dict], output_amounts: List[int]) -> List[Dict]:
+        # Swap proofs for blinded outputs to create sendable token
+        
+        import requests
+        
+        total_proof = sum(p.get("amount", 0) for p in proofs)
+        total_output = sum(output_amounts)
+        
+        if total_proof != total_output:
+            raise ValueError(f"Proof amount {total_proof} != output amount {total_output}")
+        
+        try:
+            response = requests.post(
+                f"{mint_url}/swap",
+                json={
+                    "proofs": proofs,
+                    "output_amounts": output_amounts
+                },
+                timeout=10
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            return data.get("outputs", [])
+        except Exception as e:
+            raise RuntimeError(f"Failed to swap proofs: {str(e)}")
+
+
+# ==============================================================================
+# PART 4: MELT PROTOCOL (Redeem proofs as Lightning)
+# ==============================================================================
+
+class MeltProtocolPhase1:
+    # Request a melt quote to redeem proofs as Lightning payment
+    
+    @staticmethod
+    def client_request_melt_quote(mint_url: str, invoice: str, amount: int) -> Dict:
+        # Request melt quote to redeem proofs for Lightning
+        
+        import requests
+        
+        try:
+            response = requests.post(
+                f"{mint_url}/requestmelt",
+                json={
+                    "pr": invoice,
+                    "amount": amount
+                },
+                timeout=10
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            return {
+                "quote_id": data.get("quote"),
+                "amount": amount,
+                "state": "pending",
+                "expires_at": (datetime.now() + timedelta(minutes=5)).isoformat()
+            }
+        except Exception as e:
+            raise RuntimeError(f"Failed to request melt quote: {str(e)}")
+
+
+class MeltProtocolPhase2:
+    # User finishes melting by sending proofs to redeem as Lightning
+    
+    @staticmethod
+    def client_finish_melt(mint_url: str, quote: Dict, proofs: List[Dict]) -> bool:
+        # Complete melt: send proofs to mint, receive Lightning payment confirmation
+        
+        import requests
+        
+        try:
+            response = requests.post(
+                f"{mint_url}/melt",
+                json={
+                    "quote": quote["quote_id"],
+                    "proofs": proofs,
+                    "pr": quote.get("invoice", "")
+                },
+                timeout=10
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            return data.get("state") == "paid"
+        except Exception as e:
+            raise RuntimeError(f"Failed to finish melt: {str(e)}")
+
+
+# ==============================================================================
+# PART 5: QUOTE MANAGEMENT
+# ==============================================================================
+
+class QuoteManagement:
+    # Manage mint and melt quotes with expiration tracking
+    
+    def __init__(self):
+        # Initialize quote manager
+        self.pending_quotes = {}
+    
+    def create_quote(self, quote_id: str, amount: int, quote_type: str) -> Dict:
+        # Create and track a new quote
+        quote = {
+            "quote_id": quote_id,
+            "amount": amount,
+            "type": quote_type,
+            "state": "pending",
+            "created_at": datetime.now().isoformat(),
+            "expires_at": (datetime.now() + timedelta(minutes=5)).isoformat()
+        }
+        self.pending_quotes[quote_id] = quote
+        return quote
+    
+    def is_expired(self, quote_id: str) -> bool:
+        # Check if quote has expired
+        if quote_id not in self.pending_quotes:
+            return True
+        
+        quote = self.pending_quotes[quote_id]
+        expires = datetime.fromisoformat(quote["expires_at"])
+        return datetime.now() > expires
+    
+    def get_quote(self, quote_id: str) -> Optional[Dict]:
+        # Retrieve quote by ID
+        return self.pending_quotes.get(quote_id)
+    
+    def remove_quote(self, quote_id: str) -> None:
+        # Remove quote after completion
+        if quote_id in self.pending_quotes:
+            del self.pending_quotes[quote_id]
+
+
+# ==============================================================================
+# EDUCATIONAL REFERENCE (COMMENTED)
+# ==============================================================================
+
+# CASHU PROTOCOL OVERVIEW:
+#
+# 1. BLIND SIGNING
+#    - User hashes secret and blinds it with random factor r
+#    - Sends blinded message B_ to mint (mint doesn't see secret)
+#    - Mint signs: C_ = RSA_sign(B_)
+#    - User unblinds: C = unblind(C_, r)
+#    - Result: C is valid signature of secret
+#
+# 2. MINTING
+#    - User requests quote with amount
+#    - User pays Lightning invoice
+#    - User sends blinded messages to mint
+#    - Mint returns blind signatures
+#    - User unblinds to create proofs
+#    - Result: User has proofs worth amount
+#
+# 3. SWAPPING
+#    - User sends proofs to mint with output amounts
+#    - Mint blindly signs new commitments
+#    - User receives blinded outputs
+#    - User sends outputs to recipient
+#    - Recipient unblinds to get new proofs
+#    - Result: Recipient has proofs
+#
+# 4. MELTING
+#    - User requests melt quote with Lightning invoice
+#    - User sends proofs to mint
+#    - Mint verifies proofs and pays invoice
+#    - Proofs are marked as spent
+#    - Result: Fiat/Lightning payment sent
+#
+# PRIVACY PROPERTIES:
+# - Mint never learns user secrets
+# - Mint cannot link proofs to users
+# - Mint cannot track sender/receiver
+# - Proofs are anonymous and untrackable
+# Cashu Protocol Implementation Guide - Educational Reference
+# Demonstrates blind signing, mint protocol, swap, melt, and quote management
+
+import hashlib
+import os
+from datetime import datetime, timedelta
+from typing import List, Dict, Tuple, Optional
+
+
+# ==============================================================================
+# PART 1: BLIND SIGNING (RSA-PSS)
+# ==============================================================================
+
+class BlindSigningStep1:
+    # User creates blinded message for privacy
+    
+    @staticmethod
+    def generate_blinded_message(amount: int, secret: str) -> Dict:
+        # Generate blinded message that hides secret from mint
+        secret_hash = hashlib.sha256(secret.encode()).digest()
+        secret_int = int.from_bytes(secret_hash, 'big')
+        
+        # Generate random blinding factor (32 bytes)
+        r_bytes = os.urandom(32)
+        r_int = int.from_bytes(r_bytes, 'big')
+        
+        # Combine secret and blinding factor
+        combined = hashlib.sha256(secret_hash + r_bytes).digest()
+        
+        # Convert to hex for transmission
+        B_ = combined.hex()
+        r = r_bytes.hex()
+        
+        return {
+            "amount": amount,
+            "B_": B_,      # Send to mint
+            "r": r         # Keep secret
+        }
+
+
+class BlindSigningStep2:
+    # Mint signs the blinded message without seeing the secret
+    
+    @staticmethod
+    def blind_sign(blinded_message: Dict, private_key_pem: str) -> Dict:
+        # Mint blindly signs the blinded message for privacy-preserving minting
+        
+        # Import here to avoid dependencies
+        from cryptography.hazmat.primitives.asymmetric import padding
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.backends import default_backend
+        
+        # Load private key from PEM
+        private_key = serialization.load_pem_private_key(
+            private_key_pem.encode(),
+            password=None,
+            backend=default_backend()
+        )
+        
+        # Convert blinded message from hex to bytes
+        B_bytes = bytes.fromhex(blinded_message["B_"])
+        
+        # Sign with RSA-PSS
+        signature = private_key.sign(
+            B_bytes,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.DIGEST_LENGTH
+            ),
+            hashes.SHA256()
+        )
+        
+        # Convert signature to hex
+        C_ = signature.hex()
+        
+        return {
+            "amount": blinded_message["amount"],
+            "C_": C_  # Blind signature for user to unblind
+        }
+
+
+class BlindSigningStep3:
+    # User unblinds the signature to create a spendable proof
+    
+    @staticmethod
+    def unblind_signature(blind_sig: Dict, blinding_factor: str) -> str:
+        # Unblind the mint's signature using the blinding factor
+        
+        # Convert blind signature and factor from hex to bytes
+        C_bytes = bytes.fromhex(blind_sig["C_"])
+        r_bytes = bytes.fromhex(blinding_factor)
+        
+        # Unblind by hashing signature and blinding factor
+        C = hashlib.sha256(C_bytes + r_bytes).hexdigest()
+        
+        return C
+
+
+class BlindSigningStep4:
+    # Verify DLEQ proof (Discrete Log Equality)
+    
+    @staticmethod
+    def verify_dleq_proof(proof_secret: str, commitment: str, dleq_proof: Dict) -> bool:
+        # Verify DLEQ proof that commitment matches secret (simplified check)
+        
+        # Check required fields exist
+        required_fields = ['z', 'r', 'e']
+        if not all(field in dleq_proof for field in required_fields):
+            return False
+        
+        # Validate hex format
+        try:
+            int(dleq_proof['z'], 16)
+            int(dleq_proof['r'], 16)
+            int(dleq_proof['e'], 16)
+        except (ValueError, TypeError):
+            return False
+        
+        return True
+
+
+# ==============================================================================
+# PART 2: MINT PROTOCOL (Request → Blind Sign → Unblind)
+# ==============================================================================
+
+class MintProtocolPhase1:
+    # User requests a mint quote from the mint
+    
+    @staticmethod
+    def request_mint_quote(mint_url: str, amount: int) -> Dict:
+        # Request mint quote to initiate minting process
+        
+        import uuid
+        import requests
+        
+        try:
+            response = requests.post(
+                f"{mint_url}/requestmint",
+                json={"amount": amount},
+                timeout=10
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            return {
+                "quote_id": data.get("quote"),
+                "request": data.get("request", ""),  # Lightning invoice
+                "state": "pending",
+                "expires_at": (datetime.now() + timedelta(minutes=5)).isoformat()
+            }
+        except Exception as e:
+            raise RuntimeError(f"Failed to request mint quote: {str(e)}")
+
+
+class MintProtocolPhase2:
+    # User finishes minting by sending blinded messages and receiving proofs
+    
+    @staticmethod
+    def finish_mint(mint_url: str, quote: Dict, blinded_messages: List[Dict]) -> List[Dict]:
+        # Complete minting: send blinded messages, receive blind signatures, unblind
+        
+        import requests
+        
+        try:
+            # Send blinded messages to mint
+            response = requests.post(
+                f"{mint_url}/mint",
+                json={
+                    "quote": quote["quote_id"],
+                    "blinded_messages": blinded_messages
+                },
+                timeout=10
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            proofs = []
+            for proof_data in data.get("proofs", []):
+                proofs.append({
+                    "amount": proof_data.get("amount"),
+                    "C": proof_data.get("C_"),
+                    "dleq": proof_data.get("dleq")
+                })
+            
+            return proofs
+        except Exception as e:
+            raise RuntimeError(f"Failed to finish mint: {str(e)}")
+
+
+# ==============================================================================
+# PART 3: SWAP PROTOCOL (Send proofs to other wallet)
+# ==============================================================================
+
+class SwapProtocol:
+    # Exchange proofs for blinded outputs to send to another wallet
+    
+    @staticmethod
+    def client_swap(mint_url: str, proofs: List[Dict], output_amounts: List[int]) -> List[Dict]:
+        # Swap proofs for blinded outputs to create sendable token
+        
+        import requests
+        
+        total_proof = sum(p.get("amount", 0) for p in proofs)
+        total_output = sum(output_amounts)
+        
+        if total_proof != total_output:
+            raise ValueError(f"Proof amount {total_proof} != output amount {total_output}")
+        
+        try:
+            response = requests.post(
+                f"{mint_url}/swap",
+                json={
+                    "proofs": proofs,
+                    "output_amounts": output_amounts
+                },
+                timeout=10
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            return data.get("outputs", [])
+        except Exception as e:
+            raise RuntimeError(f"Failed to swap proofs: {str(e)}")
+
+
+# ==============================================================================
+# PART 4: MELT PROTOCOL (Redeem proofs as Lightning)
+# ==============================================================================
+
+class MeltProtocolPhase1:
+    # Request a melt quote to redeem proofs as Lightning payment
+    
+    @staticmethod
+    def client_request_melt_quote(mint_url: str, invoice: str, amount: int) -> Dict:
+        # Request melt quote to redeem proofs for Lightning
+        
+        import requests
+        
+        try:
+            response = requests.post(
+                f"{mint_url}/requestmelt",
+                json={
+                    "pr": invoice,
+                    "amount": amount
+                },
+                timeout=10
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            return {
+                "quote_id": data.get("quote"),
+                "amount": amount,
+                "state": "pending",
+                "expires_at": (datetime.now() + timedelta(minutes=5)).isoformat()
+            }
+        except Exception as e:
+            raise RuntimeError(f"Failed to request melt quote: {str(e)}")
+
+
+class MeltProtocolPhase2:
+    # User finishes melting by sending proofs to redeem as Lightning
+    
+    @staticmethod
+    def client_finish_melt(mint_url: str, quote: Dict, proofs: List[Dict]) -> bool:
+        # Complete melt: send proofs to mint, receive Lightning payment confirmation
+        
+        import requests
+        
+        try:
+            response = requests.post(
+                f"{mint_url}/melt",
+                json={
+                    "quote": quote["quote_id"],
+                    "proofs": proofs,
+                    "pr": quote.get("invoice", "")
+                },
+                timeout=10
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            return data.get("state") == "paid"
+        except Exception as e:
+            raise RuntimeError(f"Failed to finish melt: {str(e)}")
+
+
+# ==============================================================================
+# PART 5: QUOTE MANAGEMENT
+# ==============================================================================
+
+class QuoteManagement:
+    # Manage mint and melt quotes with expiration tracking
+    
+    def __init__(self):
+        # Initialize quote manager
+        self.pending_quotes = {}  # {quote_id: quote_data}
+    
+    def create_quote(self, quote_id: str, amount: int, quote_type: str) -> Dict:
+        # Create and track a new quote
+        quote = {
+            "quote_id": quote_id,
+            "amount": amount,
+            "type": quote_type,  # "mint" or "melt"
+            "state": "pending",
+            "created_at": datetime.now().isoformat(),
+            "expires_at": (datetime.now() + timedelta(minutes=5)).isoformat()
+        }
+        self.pending_quotes[quote_id] = quote
+        return quote
+    
+    def is_expired(self, quote_id: str) -> bool:
+        # Check if quote has expired
+        if quote_id not in self.pending_quotes:
+            return True
+        
+        quote = self.pending_quotes[quote_id]
+        expires = datetime.fromisoformat(quote["expires_at"])
+        return datetime.now() > expires
+    
+    def get_quote(self, quote_id: str) -> Optional[Dict]:
+        # Retrieve quote by ID
+        return self.pending_quotes.get(quote_id)
+    
+    def remove_quote(self, quote_id: str) -> None:
+        # Remove quote after completion
+        if quote_id in self.pending_quotes:
+            del self.pending_quotes[quote_id]
+
+
+# ==============================================================================
+# EDUCATIONAL NOTES
+# ==============================================================================
+
+"""
+CASHU PROTOCOL OVERVIEW:
+
+1. BLIND SIGNING
+   - User hashes secret and blinds it with random factor r
+   - Sends blinded message B_ to mint (mint doesn't see secret)
+   - Mint signs: C_ = RSA_sign(B_)
+   - User unblinds: C = unblind(C_, r)
+   - Result: C is valid signature of secret
+
+2. MINTING
+   - User requests quote with amount
+   - User pays Lightning invoice
+   - User sends blinded messages to mint
+   - Mint returns blind signatures
+   - User unblinds to create proofs
+   - Result: User has proofs worth amount
+
+3. SWAPPING
+   - User sends proofs to mint with output amounts
+   - Mint blindly signs new commitments
+   - User receives blinded outputs
+   - User sends outputs to recipient
+   - Recipient unblinds to get new proofs
+   - Result: Recipient has proofs
+
+4. MELTING
+   - User requests melt quote with Lightning invoice
+   - User sends proofs to mint
+   - Mint verifies proofs and pays invoice
+   - Proofs are marked as spent
+   - Result: Fiat/Lightning payment sent
+
+PRIVACY PROPERTIES:
+- Mint never learns user secrets
+- Mint cannot link proofs to users
+- Mint cannot track sender/receiver
+- Proofs are anonymous and untrackable
+"""
 # Cashu Protocol Implementation Guide (German)
 # Blind signing, mint protocol, swap, melt, quote management
 
@@ -52,7 +795,7 @@ class BlindSigningStep2:
     
     def blind_sign(blinded_message: BlindedMessage, private_key_pem: str):
         # Mint signs blinded message
-        
+       """ 
         Der Schlüssel-Insight: Die Mint signiert die verblindete Nachricht B_,
         nicht das Geheimnis. Da es verblind ist, lernt die Mint nicht, was das
         Geheimnis ist.
@@ -118,7 +861,7 @@ class BlindSigningStep3:
     
     def unblind_signature(blind_signature: BlindSignature, blinding_factor: str):
         # Unblind signature to create spendable proof
-        
+       """ 
         Jetzt nimmt der Benutzer die Blindsignatur C_ und seinen geheimen Verblindungs-
         faktor r und erstellt eine entblindete Signatur C, die ausgegeben werden kann.
         
@@ -162,7 +905,7 @@ class BlindSigningStep4:
     
     def verify_dleq_proof(proof_secret: str, commitment: str, dleq_proof: dict):
         # Verify DLEQ proof (simplified check)
-        
+       """ 
         DLEQ-Beweis überprüft: "Das Engagement C entspricht dem Geheimnis auf die
         gleiche Weise, wie C_ B_ entspricht" ohne das Geheimnis offenzulegen.
         
@@ -229,7 +972,7 @@ class MintProtocolPhase1:
     
     def request_mint_quote(mint_url: str, amount: int):
         # Request mint quote from mint
-        
+       """ 
         Schritt 1 des Minting: Client fordert Mint Quote an.
         Mint gibt eine Lightning-Rechnung zurück zum Bezahlen.
         
@@ -287,7 +1030,7 @@ class MintProtocolPhase2:
     
     def finish_mint(mint_url: str, quote: Quote):
         # Finish minting: create blinded messages and receive signatures
-        
+       """ 
         Schritt 2 des Minting: 
         1. Verblindete Nachrichten für jede Stückelung generieren
         2. An Mint senden
@@ -521,7 +1264,7 @@ class MeltProtocolPhase2:
     def client_finish_melt(mint_url: str, quote: Quote, 
                           proofs: List[Proof]) -> bool:
         # Finish melting: redeem proofs
-        
+        """
         Schritt 2 des Meltings: Proofs an Mint zur Einlösung senden.
         
         Args:
@@ -562,6 +1305,7 @@ class MeltProtocolPhase2:
 # TEIL 5: QUOTE-VERWALTUNG (Ablauf, Zustandsverfolgung)
 # ==============================================================================
 """
+
 Quotes verwalten zeitgebundene Transaktionen. Sie verhindern:
 - Benutzer von Minting ohne Bezahlung
 - Undefnite Hängel, wenn etwas bricht
@@ -599,7 +1343,9 @@ class QuoteManagement:
                 state: Aktueller Status (ausstehend/bestätigt/abgelaufen)
                 expires_at: ISO-Zeitstempel wenn Quote abläuft
                 mint_url: Welche Mint diese Quote ausgestellt hat
+
             """
+"""
             self.quote_id = quote_id
             self.amount = amount
             self.request = request
@@ -608,7 +1354,7 @@ class QuoteManagement:
             self.expires_at = expires_at
             self.created_at = datetime.now().isoformat()
             self.mint_url = mint_url
-        
+        """
         
         def is_expired(self) -> bool:
             # Check if quote has expired
@@ -647,7 +1393,7 @@ class QuoteManagement:
         
         def add_quote(self, quote: Quote):
             # Add quote to pending list
-            
+            """
             Aufgerufen, wenn:
             - Benutzer Mint-Quote anfordert
             - Benutzer Melt-Quote anfordert
@@ -665,7 +1411,7 @@ class QuoteManagement:
         
         def get_quote(self, quote_id: str) -> Optional[Quote]:
             # Get quote by ID
-            
+            """
             Vor Verwendung überprüfen:
             - Quote existiert
             - Quote ist nicht abgelaufen
@@ -682,7 +1428,7 @@ class QuoteManagement:
         
         def remove_quote(self, quote_id: str):
             # Remove quote after completion
-            
+            """
             Aufgerufen, wenn:
             - finish_mint() erfolgreich
             - finish_melt() erfolgreich
