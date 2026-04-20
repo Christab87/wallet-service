@@ -3,7 +3,7 @@ import os
 from datetime import datetime, timedelta
 
 try:
-    from dotenv import load_dotenv
+    from dotenv import load_dotenv # type: ignore
     load_dotenv()
 except ImportError:
     pass

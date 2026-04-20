@@ -1,4 +1,4 @@
-import requests
+import requests # type: ignore
 
 
 # Cashu wallet client for mint communication
