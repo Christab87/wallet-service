@@ -3,6 +3,8 @@
 
 A complete Cashu e-wallet implementation with Lightning Network integration for privacy-preserving digital payments.
 
+> **Development Status**: This is an experimental proof-of-concept project built for learning and testing the Cashu protocol. Code is exploratory and may change significantly. Not recommended for production use with real funds yet.
+
 ## Features
 
 - **Cashu Protocol**: Full implementation of the Cashu payment protocol
