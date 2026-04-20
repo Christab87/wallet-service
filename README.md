@@ -42,6 +42,10 @@ e_wallet/
 - Python 3.8+
 - pip or conda for package management
 
+## Security
+
+This project uses environment variables to manage sensitive configuration. Never commit `.env` files to version control.
+
 ## Installation
 
 1. Clone the repository:
@@ -50,13 +54,19 @@ git clone https://github.com/yourusername/e_wallet.git
 cd e_wallet
 ```
 
-2. Create and activate virtual environment:
+2. Create environment configuration:
+```bash
+cp .env.example .env
+# Edit .env with your configuration
+```
+
+3. Create and activate virtual environment:
 ```bash
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-3. Install dependencies:
+4. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```

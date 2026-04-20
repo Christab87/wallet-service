@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, send_from_directory, send_file  # type: ignore
 import os
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
 
 from core.wallet import WalletService
 from core.mint import MintService
@@ -11,6 +12,9 @@ from core.price import get_bitcoin_price, get_historical_bitcoin_price
 
 from utils.token import encode_token, decode_token
 from models.proof import Proof
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__, static_folder="static")
 
@@ -39,11 +43,12 @@ def add_header(response):
     
     return response
 
-# WARNING: This password should be moved to environment variables in production
-PASSWORD = "super-secret-password"
+# Get password from environment variable, with fallback for development
+PASSWORD = os.getenv("WALLET_PASSWORD", "development-password-only")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-WALLET_PATH = os.path.join(BASE_DIR, "wallet.dat")
+WALLET_DATABASE = os.getenv("WALLET_DATABASE", "wallet.dat")
+WALLET_PATH = os.path.join(BASE_DIR, WALLET_DATABASE)
 
 storage = StorageService(PASSWORD, WALLET_PATH)
 wallet = WalletService(storage)

@@ -1,10 +1,10 @@
 # Cashu Protocol Implementation Guide - Educational Reference
-# Demonstrates blind signing, mint protocol, swap, melt, and quote management
 
-import hashlib
-import os
-from datetime import datetime, timedelta
-from typing import List, Dict, Optional
+This file contains Python code examples demonstrating blind signing, mint protocol, swap, melt, and quote management.
+
+## Reference Code
+
+```python
 
 
 # ==============================================================================
@@ -368,6 +368,7 @@ class QuoteManagement:
 # - Mint cannot link proofs to users
 # - Mint cannot track sender/receiver
 # - Proofs are anonymous and untrackable
+```
 # Cashu Protocol Implementation Guide - Educational Reference
 # Demonstrates blind signing, mint protocol, swap, melt, and quote management
 
