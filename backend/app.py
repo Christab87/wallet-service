@@ -1,7 +1,12 @@
 from flask import Flask, request, jsonify, send_from_directory, send_file  # type: ignore
 import os
 from datetime import datetime, timedelta
-from dotenv import load_dotenv
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 from core.wallet import WalletService
 from core.mint import MintService
@@ -12,9 +17,6 @@ from core.price import get_bitcoin_price, get_historical_bitcoin_price
 
 from utils.token import encode_token, decode_token
 from models.proof import Proof
-
-# Load environment variables from .env file
-load_dotenv()
 
 app = Flask(__name__, static_folder="static")
 

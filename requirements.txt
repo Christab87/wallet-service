@@ -1,21 +1,12 @@
-# Core Web Framework
+# Core Web Framework and HTTP
 Flask==3.0.3
-Werkzeug==3.1.8
-
-# HTTP Client
 requests==2.32.3
 
-# Cryptography & Security
+# Cryptography and Configuration
 cryptography==42.0.8
-
-# Environment Variables
 python-dotenv==1.0.1
 
-# Utilities
-python-dateutil==2.8.2
-
-# Optional: Development & Testing
-# Uncomment below for development environment
+# Development and Testing (optional)
 # pytest==7.4.4
 # pytest-cov==4.1.0
 # black==24.1.1
